@@ -424,6 +424,11 @@ web3._extend({
 			params: 2,
 			inputFormatter:[null, null],
 		}),
+		new web3._extend.Method({
+			name: 'getSliceKeys',
+			call: 'debug_getSliceKeys',
+			params: 3,
+		}),
 	],
 	properties: []
 });
