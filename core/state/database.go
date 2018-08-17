@@ -59,6 +59,12 @@ type Database interface {
 	TrieDB() *trie.Database
 }
 
+type SlicerDatabase interface {
+	Database
+
+	OpenSecureTrie(root common.Hash) (*trie.SecureTrie, error)
+}
+
 // Trie is a Ethereum Merkle Trie.
 type Trie interface {
 	TryGet(key []byte) ([]byte, error)
@@ -89,6 +95,15 @@ func NewDatabaseWithCache(db ethdb.Database, cache int) Database {
 	}
 }
 
+// NewSlicerDatabase contains enhancements to the original database
+func NewSlicerDatabase(db ethdb.Database) SlicerDatabase {
+	csc, _ := lru.New(codeSizeCacheSize)
+	return &cachingDB{
+		db:            trie.NewDatabase(db),
+		codeSizeCache: csc,
+	}
+}
+
 type cachingDB struct {
 	db            *trie.Database
 	mu            sync.Mutex
@@ -111,6 +126,22 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 		return nil, err
 	}
 	return cachedTrie{tr, db}, nil
+}
+
+func (db *cachingDB) OpenSecureTrie(root common.Hash) (*trie.SecureTrie, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := len(db.pastTries) - 1; i >= 0; i-- {
+		if db.pastTries[i].Hash() == root {
+			return db.pastTries[i].Copy(), nil
+		}
+	}
+	tr, err := trie.NewSecure(root, db.db, MaxTrieCacheGen)
+	if err != nil {
+		return nil, err
+	}
+	return tr, nil
 }
 
 func (db *cachingDB) pushTrie(t *trie.SecureTrie) {
