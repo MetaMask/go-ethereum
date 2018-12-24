@@ -158,7 +158,7 @@ func (it *SliceIterator) Blob(hash common.Hash) []byte {
 	// ver si esta aca, sacar
 
 	db.lock.RLock()
-	node := db.nodes[hash]
+	node := db.dirties[hash]
 	db.lock.RUnlock()
 
 	if node != nil {
