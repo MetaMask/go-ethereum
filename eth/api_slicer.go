@@ -45,7 +45,7 @@ type GetSliceResponseAccount struct {
 // - depth			depth to walk from the slice head
 // - stateRoot		state root of the GetSliceResponse
 // - onlyKeys		omit the blobs in the response
-func (api *PublicDebugAPI) GetSlice(ctx context.Context, path string, depth int, stateRoot string, storage bool) (GetSliceResponse, error) {
+func (api *EthAPIBackend) GetSlice(ctx context.Context, path string, depth int, stateRoot string, storage bool) (GetSliceResponse, error) {
 	var timerStart int64
 
 	// check the path parameter
