@@ -33,7 +33,7 @@ func (st *SecureTrie) NewSliceIterator(start []byte) *SliceIterator {
 // defined at the SliceIterator construction.
 func (it *SliceIterator) Slice(maxDepth int, includeBlobs bool) ([][]common.Hash, [][][]byte) {
 	keys := make([][]common.Hash, maxDepth+1)
-	for i, _ := range keys {
+	for i := range keys {
 		// group nodes by their depth
 		keys[i] = make([]common.Hash, 0)
 	}
@@ -41,7 +41,7 @@ func (it *SliceIterator) Slice(maxDepth int, includeBlobs bool) ([][]common.Hash
 	var blobs [][][]byte
 	if includeBlobs {
 		blobs = make([][][]byte, maxDepth+1)
-		for i, _ := range blobs {
+		for i := range blobs {
 			blobs[i] = make([][]byte, 0)
 		}
 	}

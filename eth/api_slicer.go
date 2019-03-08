@@ -45,7 +45,11 @@ type GetSliceResponseAccount struct {
 // - depth			depth to walk from the slice head
 // - stateRoot		state root of the GetSliceResponse
 // - onlyKeys		omit the blobs in the response
-func (api *EthAPIBackend) GetSlice(ctx context.Context, path string, depth int, stateRoot string, storage bool) (GetSliceResponse, error) {
+func (api *PublicEthereumAPI) GetSlice(ctx context.Context, path string, depth int, stateRoot string, storage bool) (GetSliceResponse, error) {
+	return api.e.APIBackend.getSlice(ctx, path, depth, stateRoot, storage)
+}
+
+func (api *EthAPIBackend) getSlice(ctx context.Context, path string, depth int, stateRoot string, storage bool) (GetSliceResponse, error) {
 	var timerStart int64
 
 	// check the path parameter
