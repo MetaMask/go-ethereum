@@ -73,6 +73,10 @@ type statePack struct {
 	peerID string
 	states [][]byte
 }
+type chunksPack struct {
+	peerID string
+	states []*types.TrieChunk
+}
 
 func (p *statePack) PeerId() string { return p.peerID }
 func (p *statePack) Items() int     { return len(p.states) }

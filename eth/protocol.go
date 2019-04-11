@@ -30,8 +30,9 @@ import (
 
 // Constants to match up protocol versions and messages
 const (
-	eth62 = 62
-	eth63 = 63
+	eth62  = 62
+	eth63  = 63
+	eth100 = 100 // 99+ custom modes (why isn't there a reserved range for extensions?)
 )
 
 // ProtocolName is the official short name of the protocol used during capability negotiation.
@@ -62,6 +63,11 @@ const (
 	NodeDataMsg    = 0x0e
 	GetReceiptsMsg = 0x0f
 	ReceiptsMsg    = 0x10
+
+	// Kitsunet extension
+	GetStateChunksMsg   = 0x100
+	GetStorageChunksMsg = 0x101
+	ChunksMsg           = 0x102
 )
 
 type errCode int
@@ -129,6 +135,12 @@ type getBlockHeadersData struct {
 	Amount  uint64       // Maximum number of headers to retrieve
 	Skip    uint64       // Blocks to skip between consecutive headers
 	Reverse bool         // Query direction (false = rising towards latest, true = falling towards genesis)
+}
+
+type getTrieChunk struct {
+	Path  []byte
+	Depth int // TODO: this needs to be changed for an optional max size
+	Root  common.Hash
 }
 
 // hashOrNumber is a combined field for specifying an origin block.

@@ -40,4 +40,7 @@ var (
 
 	stateInMeter   = metrics.NewRegisteredMeter("eth/downloader/states/in", nil)
 	stateDropMeter = metrics.NewRegisteredMeter("eth/downloader/states/drop", nil)
+
+	chunkInMeter   = metrics.NewRegisteredMeter("eth/downloader/chunks/in", nil)
+	chunkDropMeter = metrics.NewRegisteredMeter("eth/downloader/chunks/drop", nil)
 )

@@ -699,20 +699,16 @@ func (bc *BlockChain) TrieNode(hash common.Hash) ([]byte, error) {
 	return bc.stateCache.TrieDB().Node(hash)
 }
 
-type TrieChunk struct {
-	Leafs map[common.Hash]trie.LeafNode
-	Nodes map[common.Hash][]byte
-}
-
-func (bc *BlockChain) getTrieChunk(path []byte, depth int, stateRoot common.Hash, storage bool) (*TrieChunk, error) {
-	response := TrieChunk{
+// GetTrieChunk gets a chunk of the state or storage trie
+func (bc *BlockChain) GetTrieChunk(path []byte, depth int, stateRoot common.Hash, storage bool) (*types.TrieChunk, error) {
+	response := types.TrieChunk{
 		Leafs: make(map[common.Hash]trie.LeafNode),
 		Nodes: make(map[common.Hash][]byte),
 	}
 
 	tr, err := bc.GetSecureTrie(stateRoot)
 	if nil != err {
-		return nil, errors.New(fmt.Sprintf("unable to retried root for %X", stateRoot))
+		return nil, fmt.Errorf("unable to retried root for %X", stateRoot)
 	}
 
 	// prepare to fetch the stem
@@ -758,9 +754,6 @@ func (bc *BlockChain) getTrieChunk(path []byte, depth int, stateRoot common.Hash
 	if storage == true {
 		return &response, nil
 	}
-
-	// TODO
-	// we need to add the smart contract code (when it applies)
 
 	// fetch the leaves information
 	it = tr.NewSliceIterator(path)

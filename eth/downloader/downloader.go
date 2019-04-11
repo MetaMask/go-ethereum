@@ -44,6 +44,7 @@ var (
 	MaxBodyFetch    = 128 // Amount of block bodies to be fetched per retrieval request
 	MaxReceiptFetch = 256 // Amount of transaction receipts to allow fetching per request
 	MaxStateFetch   = 384 // Amount of node state values to allow fetching per request
+	MaxChunksFetch  = 16  // Amount of state chunks to allow fetching per request
 
 	MaxForkAncestry  = 3 * params.EpochDuration // Maximum chain reorganisation
 	rttMinEstimate   = 2 * time.Second          // Minimum round-trip time to target for download requests
@@ -132,6 +133,8 @@ type Downloader struct {
 	bodyWakeCh    chan bool            // [eth/62] Channel to signal the block body fetcher of new tasks
 	receiptWakeCh chan bool            // [eth/63] Channel to signal the receipt fetcher of new tasks
 	headerProcCh  chan []*types.Header // [eth/62] Channel to feed the header processor new tasks
+
+	chunksProcCh chan []*types.TrieChunk // [eth/100] Channel to feed the chunks process new tasks
 
 	// for stateFetcher
 	stateSyncStart chan *stateSync
@@ -227,6 +230,7 @@ func New(mode SyncMode, stateDb ethdb.Database, mux *event.TypeMux, chain BlockC
 		bodyWakeCh:     make(chan bool, 1),
 		receiptWakeCh:  make(chan bool, 1),
 		headerProcCh:   make(chan []*types.Header, 1),
+		chunksProcCh:   make(chan []*types.TrieChunk, 1),
 		quitCh:         make(chan struct{}),
 		stateCh:        make(chan dataPack),
 		stateSyncStart: make(chan *stateSync),
@@ -1671,6 +1675,11 @@ func (d *Downloader) DeliverBodies(id string, transactions [][]*types.Transactio
 // DeliverReceipts injects a new batch of receipts received from a remote node.
 func (d *Downloader) DeliverReceipts(id string, receipts [][]*types.Receipt) (err error) {
 	return d.deliver(id, d.receiptCh, &receiptPack{id, receipts}, receiptInMeter, receiptDropMeter)
+}
+
+// DeliverChunks injects a new batch of trie chunks from a remote node
+func (d *Downloader) DeliverChunks(id string, chunks []*types.TrieChunk) (err error) {
+	return d.deliver(id, d.chunksProcCh, &chunksPack{id, chunks}, chunkInMeter, chunkDropMeter)
 }
 
 // DeliverNodeData injects a new batch of node state data received from a remote node.

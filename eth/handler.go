@@ -631,6 +631,49 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			log.Debug("Failed to deliver receipts", "err", err)
 		}
 
+	case p.version >= eth100 && msg.Code == GetStateChunksMsg:
+		// Decode the retrieval message
+		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
+		if _, err := msgStream.List(); err != nil {
+			return err
+		}
+		// Gather blocks until the fetch or network limits is reached
+		var (
+			bytes  int
+			query  getTrieChunk
+			chunks []rlp.RawValue
+		)
+		for bytes < softResponseLimit && len(chunks) < downloader.MaxChunksFetch {
+			// Retrieve the hash of the next block
+			if err := msgStream.Decode(&query); err == rlp.EOL {
+				break
+			} else if err != nil {
+				return errResp(ErrDecode, "msg %v: %v", msg, err)
+			}
+
+			// Retrieve the requested block body, stopping if enough was found
+			if data, err := pm.blockchain.GetTrieChunk(query.Path, query.Depth, query.Root, false); err != nil {
+				// If known, encode and queue for response packet
+				if encoded, err := rlp.EncodeToBytes(data); err != nil {
+					log.Error("Failed to encode receipt", "err", err)
+				} else {
+					chunks = append(chunks, encoded)
+					bytes += len(encoded)
+				}
+			}
+		}
+		return p.SendChunksRLP(chunks)
+	case p.version >= eth100 && msg.Code == ChunksMsg:
+		// A batch of trie chunks arrived to one of our previous requests
+		var chunks []*BlockChain.TrieChunk
+		if err := msg.Decode(&chunks); err != nil {
+			return errResp(ErrDecode, "msg %v: %v", msg, err)
+		}
+		// Deliver all to the downloader
+		if err := pm.downloader.DeliverChunks(p.id, chunks); err != nil {
+			log.Debug("Failed to deliver receipts", "err", err)
+		}
+
 	case msg.Code == NewBlockHashesMsg:
 		var announces newBlockHashesData
 		if err := msg.Decode(&announces); err != nil {
