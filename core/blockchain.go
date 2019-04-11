@@ -699,6 +699,81 @@ func (bc *BlockChain) TrieNode(hash common.Hash) ([]byte, error) {
 	return bc.stateCache.TrieDB().Node(hash)
 }
 
+type TrieChunk struct {
+	Leafs map[common.Hash]trie.LeafNode
+	Nodes map[common.Hash][]byte
+}
+
+func (bc *BlockChain) getTrieChunk(path []byte, depth int, stateRoot common.Hash, storage bool) (*TrieChunk, error) {
+	response := TrieChunk{
+		Leafs: make(map[common.Hash]trie.LeafNode),
+		Nodes: make(map[common.Hash][]byte),
+	}
+
+	tr, err := bc.GetSecureTrie(stateRoot)
+	if nil != err {
+		return nil, errors.New(fmt.Sprintf("unable to retried root for %X", stateRoot))
+	}
+
+	// prepare to fetch the stem
+	it := tr.NewSliceIterator(path)
+	it.Next(true)
+	// the actual fetching
+	stemKeys := it.StemKeys()
+	stemBlobs := it.StemBlobs()
+
+	// fill the stem data into the response
+	for idx, key := range stemKeys {
+		response.Nodes[key] = stemBlobs[idx]
+	}
+
+	// fetch the slice
+	it = tr.NewSliceIterator(path)
+	sliceKeys, sliceBlobs := it.Slice(depth, true)
+	if len(sliceKeys[0]) < 1 || len(sliceBlobs[0]) < 1 {
+		return nil, nil
+	}
+
+	response.Nodes[sliceKeys[0][0]] = sliceBlobs[0][0]
+	// fill the rest of the slice data into the response
+	for dl, depthLevel := range sliceKeys {
+		if dl == 0 {
+			// we already delivered the head
+			continue
+		}
+
+		if len(depthLevel) == 0 {
+			// we are done before reaching maxDepth
+			break
+		}
+
+		// remember that we make a separate golang slice per depth level
+		// but we return (here in the RPC) everything in a single level.
+		// it is the job of the client to assemble back the data
+		for k, key := range depthLevel {
+			response.Nodes[key] = sliceBlobs[dl][k]
+		}
+	}
+
+	if storage == true {
+		return &response, nil
+	}
+
+	// TODO
+	// we need to add the smart contract code (when it applies)
+
+	// fetch the leaves information
+	it = tr.NewSliceIterator(path)
+	leafsNodes := it.GetLeafs()
+
+	for _, leafNode := range leafsNodes {
+		response.Leafs[leafNode.LeafHash] = leafNode
+	}
+
+	// we are done here
+	return &response, nil
+}
+
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (bc *BlockChain) Stop() {

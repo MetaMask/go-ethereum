@@ -18,6 +18,12 @@ type SliceIterator struct {
 	nodeIterator
 }
 
+type LeafNode struct {
+	LeafHash  common.Hash
+	LeafBytes []byte
+	CodeBytes []byte
+}
+
 // NewSliceIterator returns a SliceIterator object
 func (st *SecureTrie) NewSliceIterator(start []byte) *SliceIterator {
 	if st.trie.Hash() == emptyState {
@@ -174,6 +180,50 @@ func (it *SliceIterator) Blob(hash common.Hash) []byte {
 	return blob
 }
 
+func (it *SliceIterator) GetLeafs() []LeafNode {
+	leafs := []LeafNode{}
+
+	// traverse the slice
+	headCheckPoint := false
+	var headDepth, currentDepth int
+
+	for {
+		// update the state of the iterator
+		it.Next(true)
+
+		// the stack (path from root to the slice head) is including the latter
+		currentDepth = len(it.stack) - 1
+
+		// set the checkpoint
+		if !headCheckPoint {
+			headDepth = currentDepth
+			headCheckPoint = true
+		} else {
+			if currentDepth <= headDepth {
+				// we are back to head level, the traversal is complete
+				// for example, we started at depth 3, we would go
+				// 000, 0001, 00012, 00013, 00021, 00022.
+				// at 001 we call it in, since we finished the traversal
+				break
+			}
+		}
+
+		// on leaf, we identify whether is a smart contract
+		if it.Leaf() {
+			hash := it.stack[len(it.stack)-2].hash
+			leaf := it.Blob(hash)
+			_, _, evmCode, _ := it.identifyLeafType(leaf)
+			leafs = append(leafs, LeafNode{
+				LeafHash:  hash,
+				LeafBytes: leaf,
+				CodeBytes: evmCode,
+			})
+		}
+	}
+
+	return leafs
+}
+
 // GetLeavesInfo originally called GetLeavesNumberAndSmartContractStorageRoots
 // returns the number of leaves, smart contracts, the latter paths
 // (we won't fetch preimages) and their storage roots, to save the user a traversal
@@ -214,8 +264,7 @@ func (it *SliceIterator) GetLeavesInfo() (numberOfLeaves, numberOfSmartContracts
 			hash := it.stack[len(it.stack)-2].hash
 			path := hexToKeybytes(it.Path())
 
-			leafType, root, evmCode := it.identifyLeafType(it.Blob(hash))
-
+			leafType, root, _evmCode, _ := it.identifyLeafType(it.Blob(hash))
 			if leafType == "smart contract" {
 				numberOfSmartContracts++
 
@@ -224,8 +273,9 @@ func (it *SliceIterator) GetLeavesInfo() (numberOfLeaves, numberOfSmartContracts
 					path,
 					root[:],
 				}
+
 				storageRoots = append(storageRoots, pair)
-				evmCodes = append(evmCodes, evmCode) // TODO hacer mejor esta wea
+				evmCodes = append(evmCodes, fmt.Sprintf("%x", _evmCode)) // TODO hacer mejor esta wea
 			}
 
 			numberOfLeaves++
@@ -244,7 +294,7 @@ type Account struct {
 
 // identifyLeafType is a convenience method
 // if the leaf is a smart contract, it will return the storage root
-func (it *SliceIterator) identifyLeafType(input []byte) (string, common.Hash, string) {
+func (it *SliceIterator) identifyLeafType(input []byte) (string, common.Hash, []byte, []byte) {
 	var i []interface{}
 	var account Account
 
@@ -279,9 +329,9 @@ func (it *SliceIterator) identifyLeafType(input []byte) (string, common.Hash, st
 				// como se hace?
 				// - el CodeHash es una key en la levelDB, tengo que pedirlo
 				// - db.diskdb.Get(hash[:])
-				return "smart contract", account.Root, fmt.Sprintf("%x", it.Blob(common.BytesToHash(account.CodeHash[:])))
+				return "smart contract", account.Root, it.Blob(common.BytesToHash(account.CodeHash[:])), account.CodeHash[:]
 			} else {
-				return "balance account", common.Hash{}, ""
+				return "balance account", common.Hash{}, nil, nil
 			}
 		default:
 			panic("unknown hex prefix on trie node")
