@@ -905,3 +905,10 @@ func makeSwap(size int64) executionFunc {
 		return nil, nil
 	}
 }
+
+// double a number
+func opDouble(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
+	x := callContext.stack.peek()
+	x.Add(x, x)
+	return nil, nil
+}

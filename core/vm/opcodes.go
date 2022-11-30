@@ -221,6 +221,10 @@ const (
 	SELFDESTRUCT OpCode = 0xff
 )
 
+const (
+	DOUBLE OpCode = 0xc0 + iota
+)
+
 // Since the opcodes aren't all in order we can't use a regular slice.
 var opCodeToString = map[OpCode]string{
 	// 0x0 range - arithmetic ops.
@@ -391,6 +395,9 @@ var opCodeToString = map[OpCode]string{
 	PUSH: "PUSH",
 	DUP:  "DUP",
 	SWAP: "SWAP",
+
+	// Custom OpCodes
+	DOUBLE: "DOUBLE",
 }
 
 func (op OpCode) String() string {
@@ -547,6 +554,7 @@ var stringToOp = map[string]OpCode{
 	"CALLCODE":       CALLCODE,
 	"REVERT":         REVERT,
 	"SELFDESTRUCT":   SELFDESTRUCT,
+	"DOUBLE":         DOUBLE,
 }
 
 // StringToOp finds the opcode whose name is stored in `str`.

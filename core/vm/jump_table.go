@@ -1019,5 +1019,11 @@ func newFrontierInstructionSet() JumpTable {
 			halts:      true,
 			writes:     true,
 		},
+		DOUBLE: {
+			execute:     opDouble,
+			constantGas: GasFastestStep,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+		},
 	}
 }
